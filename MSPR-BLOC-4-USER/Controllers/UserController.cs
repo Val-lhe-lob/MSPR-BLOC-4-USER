@@ -1,6 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MSPR_BLOC_4_USER.Models;
+using System.Security.Claims;
+using BCrypt.Net;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -14,6 +17,7 @@ public class UserController : ControllerBase
     }
 
     // POST: api/User/register
+    [AllowAnonymous]
     [HttpPost("register")]
     public async Task<ActionResult<User>> Register(User user)
     {
@@ -24,7 +28,10 @@ public class UserController : ControllerBase
 
         user.CreatedAt = DateTime.UtcNow;
         user.LastModifiedAt = DateTime.UtcNow;
-        user.LastLoginAt = null; // Pas encore connecté
+        user.LastLoginAt = null;
+
+        // Hash sécurisé
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
@@ -33,15 +40,21 @@ public class UserController : ControllerBase
     }
 
     // PUT: api/User/update/{id}
+    [Authorize]
     [HttpPut("update/{id}")]
     public async Task<IActionResult> UpdateUser(int id, User updatedUser)
     {
         var user = await _context.Users.FindAsync(id);
-        if (user == null)
-            return NotFound();
+        if (user == null) return NotFound();
+
+        var loggedInUsername = User.Identity?.Name;
+        if (loggedInUsername != user.Username && !User.IsInRole("admin"))
+        {
+            return Forbid("You can only modify your own account unless you are admin.");
+        }
 
         user.Username = updatedUser.Username ?? user.Username;
-        user.AccountType = updatedUser.AccountType ?? user.AccountType;
+        user.AccountType = User.IsInRole("admin") ? updatedUser.AccountType ?? user.AccountType : user.AccountType;
         user.LastModifiedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -49,14 +62,20 @@ public class UserController : ControllerBase
     }
 
     // PUT: api/User/update-password/{id}
+    [Authorize]
     [HttpPut("update-password/{id}")]
     public async Task<IActionResult> UpdatePassword(int id, [FromBody] string newPassword)
     {
         var user = await _context.Users.FindAsync(id);
-        if (user == null)
-            return NotFound();
+        if (user == null) return NotFound();
 
-        user.PasswordHash = newPassword; // ⚠️ A remplacer par hashage sécurisé plus tard
+        var loggedInUsername = User.Identity?.Name;
+        if (loggedInUsername != user.Username && !User.IsInRole("admin"))
+        {
+            return Forbid("You can only change your own password unless you are admin.");
+        }
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
         user.LastModifiedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -64,12 +83,18 @@ public class UserController : ControllerBase
     }
 
     // DELETE: api/User/delete/{id}
+    [Authorize]
     [HttpDelete("delete/{id}")]
     public async Task<IActionResult> DeleteUser(int id)
     {
         var user = await _context.Users.FindAsync(id);
-        if (user == null)
-            return NotFound();
+        if (user == null) return NotFound();
+
+        var loggedInUsername = User.Identity?.Name;
+        if (loggedInUsername != user.Username && !User.IsInRole("admin"))
+        {
+            return Forbid("You can only delete your own account unless you are admin.");
+        }
 
         _context.Users.Remove(user);
         await _context.SaveChangesAsync();
@@ -78,6 +103,7 @@ public class UserController : ControllerBase
     }
 
     // GET: api/User
+    [Authorize(Roles = "admin")]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<User>>> GetAllUsers()
     {
@@ -85,12 +111,18 @@ public class UserController : ControllerBase
     }
 
     // GET: api/User/{id}
+    [Authorize]
     [HttpGet("{id}")]
     public async Task<ActionResult<User>> GetUserById(int id)
     {
         var user = await _context.Users.FindAsync(id);
-        if (user == null)
-            return NotFound();
+        if (user == null) return NotFound();
+
+        var loggedInUsername = User.Identity?.Name;
+        if (loggedInUsername != user.Username && !User.IsInRole("admin") && !User.IsInRole("moderator"))
+        {
+            return Forbid("You can only view your own account unless you are admin or moderator.");
+        }
 
         return user;
     }
