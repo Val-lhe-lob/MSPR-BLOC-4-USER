@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Injection UserDbContext avec la connection string Docker
 builder.Services.AddDbContext<UserDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -14,7 +13,6 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Add JWT Authentication
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -45,33 +43,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    try
-    {
-        var context = services.GetRequiredService<UserDbContext>();
-        Console.WriteLine("UserDbContext successfully resolved.");
-
-        var connectionString = context.Database.GetConnectionString();
-        Console.WriteLine($"Connection string used by UserDbContext: {connectionString}");
-
-        if (!context.Database.CanConnect())
-        {
-            Console.WriteLine("Cannot connect to the database from UserDbContext.");
-        }
-        else
-        {
-            Console.WriteLine("Successfully connected to the database from UserDbContext.");
-        }
-    }
-    catch (Exception ex)
-    {
-        Console.WriteLine("Exception while resolving or using UserDbContext:");
-        Console.WriteLine(ex.ToString());
-    }
-}
-
 
 app.Run();
