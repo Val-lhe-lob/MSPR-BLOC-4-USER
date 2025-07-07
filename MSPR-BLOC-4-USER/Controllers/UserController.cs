@@ -11,10 +11,7 @@ public class UserController : ControllerBase
 {
     private readonly UserDbContext _context;
 
-    public UserController(UserDbContext context)
-    {
-        _context = context;
-    }
+    public UserController(UserDbContext context) => _context = context;
 
     // POST: api/User/register
     [AllowAnonymous]
