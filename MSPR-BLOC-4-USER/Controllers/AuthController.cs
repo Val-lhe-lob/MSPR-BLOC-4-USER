@@ -2,7 +2,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using MSPR_BLOC_4_USER.Models;
-using BCrypt.Net;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -20,11 +19,8 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username && u.PasswordHash == request.Password);
         if (user == null)
-            return Unauthorized("Invalid credentials.");
-
-        if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             return Unauthorized("Invalid credentials.");
 
         user.LastLoginAt = DateTime.UtcNow;
