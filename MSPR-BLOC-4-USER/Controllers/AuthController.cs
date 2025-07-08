@@ -2,6 +2,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using MSPR_BLOC_4_USER.Models;
+using System.Security.Cryptography;
+using System.Text;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -16,11 +18,23 @@ public class AuthController : ControllerBase
         _configuration = configuration;
     }
 
+    private string HashPassword(string password)
+    {
+        using var sha256 = SHA256.Create();
+        var bytes = Encoding.UTF8.GetBytes(password);
+        var hash = sha256.ComputeHash(bytes);
+        return Convert.ToHexString(hash);
+    }
+
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
-        var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username && u.PasswordHash == request.Password);
+        var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
         if (user == null)
+            return Unauthorized("Invalid credentials.");
+
+        var hashedInput = HashPassword(request.Password);
+        if (hashedInput != user.PasswordHash)
             return Unauthorized("Invalid credentials.");
 
         user.LastLoginAt = DateTime.UtcNow;
