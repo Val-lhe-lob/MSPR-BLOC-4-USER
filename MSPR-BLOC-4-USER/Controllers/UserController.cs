@@ -2,8 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MSPR_BLOC_4_USER.Models;
-using System.Security.Claims;
-using BCrypt.Net;
+using System.Security.Cryptography;
+using System.Text;
 
 [Route("api/[controller]")]
 [ApiController]
@@ -13,7 +13,14 @@ public class UserController : ControllerBase
 
     public UserController(UserDbContext context) => _context = context;
 
-    // POST: api/User/register
+    private string HashPassword(string password)
+    {
+        using var sha256 = SHA256.Create();
+        var bytes = Encoding.UTF8.GetBytes(password);
+        var hash = sha256.ComputeHash(bytes);
+        return Convert.ToHexString(hash);
+    }
+
     [AllowAnonymous]
     [HttpPost("register")]
     public async Task<ActionResult<User>> Register(User user)
@@ -27,8 +34,7 @@ public class UserController : ControllerBase
         user.LastModifiedAt = DateTime.UtcNow;
         user.LastLoginAt = null;
 
-        // Hash sécurisé
-        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
+        user.PasswordHash = HashPassword(user.PasswordHash);
 
         _context.Users.Add(user);
         await _context.SaveChangesAsync();
@@ -36,7 +42,6 @@ public class UserController : ControllerBase
         return CreatedAtAction(nameof(GetUserById), new { id = user.Id }, user);
     }
 
-    // PUT: api/User/update/{id}
     [Authorize]
     [HttpPut("update/{id}")]
     public async Task<IActionResult> UpdateUser(int id, User updatedUser)
@@ -58,7 +63,6 @@ public class UserController : ControllerBase
         return NoContent();
     }
 
-    // PUT: api/User/update-password/{id}
     [Authorize]
     [HttpPut("update-password/{id}")]
     public async Task<IActionResult> UpdatePassword(int id, [FromBody] string newPassword)
@@ -72,14 +76,13 @@ public class UserController : ControllerBase
             return Forbid("You can only change your own password unless you are admin.");
         }
 
-        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+        user.PasswordHash = HashPassword(newPassword);
         user.LastModifiedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
         return NoContent();
     }
 
-    // DELETE: api/User/delete/{id}
     [Authorize]
     [HttpDelete("delete/{id}")]
     public async Task<IActionResult> DeleteUser(int id)
@@ -99,7 +102,6 @@ public class UserController : ControllerBase
         return NoContent();
     }
 
-    // GET: api/User
     [Authorize(Roles = "admin")]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<User>>> GetAllUsers()
@@ -107,7 +109,6 @@ public class UserController : ControllerBase
         return await _context.Users.ToListAsync();
     }
 
-    // GET: api/User/{id}
     [Authorize]
     [HttpGet("{id}")]
     public async Task<ActionResult<User>> GetUserById(int id)
