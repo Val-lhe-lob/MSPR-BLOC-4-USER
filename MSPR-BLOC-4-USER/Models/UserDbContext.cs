@@ -21,10 +21,11 @@ public partial class UserDbContext : DbContext
     {
         modelBuilder.Entity<User>(entity =>
         {
-
             entity.ToTable("User");
 
             entity.HasKey(e => e.Id).HasName("PK__User__3214EC079DDEC034");
+
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
 
             entity.Property(e => e.AccountType).HasDefaultValue("user");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
@@ -33,6 +34,7 @@ public partial class UserDbContext : DbContext
 
         OnModelCreatingPartial(modelBuilder);
     }
+
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
 }
