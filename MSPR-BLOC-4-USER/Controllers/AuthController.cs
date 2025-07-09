@@ -48,7 +48,21 @@ public class AuthController : ControllerBase
             user.AccountType ?? "user"
         );
 
-        return Ok(new { token });
+        // Créer un DTO sécurisé sans mot de passe
+        var userDto = new
+        {
+            user.Id,
+            user.Username,
+            user.AccountType,
+            user.LastLoginAt,
+            user.CreatedAt
+        };
+
+        return Ok(new
+        {
+            token,
+            user = userDto
+        });
     }
 }
 
